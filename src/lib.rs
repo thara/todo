@@ -16,38 +16,36 @@ fn task(s: &str) -> Option<Task> {
     let (pri, pos) = priority(s, pos);
     let (d1, pos) = completion_date(s, pos);
     let (d2, pos) = creation_date(s, pos);
-    let (desc, pos) = description(s, pos);
 
-    if let desc = s[pos..] {
-        let t = Task {
-            completed: comp,
-            priority: pri,
-            completion_date: d1,
-            creation_date: d2,
-            description: desc,
-        };
-        Some(t)
-    } else {
-        None
-    }
+    let desc = &s[pos..];
+    let t = Task {
+        completed: comp,
+        priority: pri,
+        completion_date: d1,
+        creation_date: d2,
+        description: String::from(desc),
+    };
+    Some(t)
 
     // while s[pos] == " " {
     //     let t, pos = tag(s, pos);
     // }
 }
 fn completed(s: &str, pos: usize) -> (bool, usize) {
-    if s[pos] == "x" {
+    if s.chars().nth(pos) == Some('x') {
         (true, pos + 1)
     } else {
         (false, pos)
     }
 }
 fn priority(s: &str, pos: usize) -> (Option<Priority>, usize) {
-    if s[pos] == "(" && s[pos + 2] == ")" {
-        let p = match s[pos + 1] {
-            "A" => High,
-            "B" => Mid,
-            _ => Low,
+    let mut chars = s.chars();
+    if chars.nth(pos) == Some('(') && chars.nth(pos + 2) == Some(')') {
+        let ch = chars.nth(pos + 1).unwrap();
+        let p = match ch {
+            'A' => Priority::High,
+            'B' => Priority::Mid,
+            _ => Priority::Low,
         };
         (Some(p), pos + 3)
     } else {
@@ -55,11 +53,12 @@ fn priority(s: &str, pos: usize) -> (Option<Priority>, usize) {
     }
 }
 fn date(s: &str, pos: usize) -> (Option<String>, usize) {
-    if s[pos + 11] == " " {
-        if let Some(datestr) = s.get(pos..pos+11) {
+    let mut chars = s.chars();
+    if chars.nth(pos + 11) == Some(' ') {
+        if let Some(datestr) = s.get(pos..pos + 11) {
             match time::strptime(datestr, "%Y-%m-%d") {
-                Ok(_) => (Some(String::from(datestr)), pos+11),
-                _ => (None, pos)
+                Ok(_) => (Some(String::from(datestr)), pos + 11),
+                _ => (None, pos),
             }
         } else {
 
@@ -89,14 +88,20 @@ struct Parser<T>(pub fn(String) -> Vec<(T, String)>);
 //     }
 // }
 
-enum Priority {High, Mid, Low}
+#[derive(Debug,PartialEq)]
+enum Priority {
+    High,
+    Mid,
+    Low,
+}
 
+#[derive(Debug)]
 struct Task {
     completed: bool,
     priority: Option<Priority>,
     completion_date: Option<String>,
     creation_date: Option<String>,
-    description: String
+    description: String,
 }
 
 impl Task {
@@ -113,6 +118,8 @@ impl Task {
 mod tests {
     use Task;
     use Parser;
+    use Priority;
+    use task;
     #[test]
     fn it_parse_todo_txt_format() {
 
@@ -125,14 +132,17 @@ mod tests {
         });
 
 
+
         let line = "x (A) 2011-03-02 2011-03-01 Review Tim's pull request +TodoTxtTouch @github";
-        Task::parse_line(line);
-        // let task = Task::parse_line(line);
-        // assert_eq!(task.completed, true);
-        // assert_eq!(task.priority, Priority::High);
-        // assert_eq!(task.completion_date, "2011-03-02");
-        // assert_eq!(task.creation_date, "2011-03-01");
-        // assert_eq!(task.description, "Review Tim's pull request +TodoTxtTouch @github");
+        let t = task(line).unwrap();
+        println!("{:?}", t);
+
+        assert_eq!(t.completed, true);
+        assert_eq!(t.priority.unwrap(), Priority::High);
+        assert_eq!(t.completion_date.unwrap(), "2011-03-02".to_string());
+        assert_eq!(t.creation_date.unwrap(), "2011-03-01".to_string());
+        assert_eq!(t.description,
+                   "Review Tim's pull request +TodoTxtTouch @github");
         // assert_eq!(task.description.txt, "Review Tim's pull request ");
         // assert_eq!(task.description.contexts.length, 1);
         // assert_eq!(task.description.contexts[0], "TodoTxtTouch");
