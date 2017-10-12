@@ -6,7 +6,6 @@
 // <tag> ::= " +" <project_name> | " @" <context_name>
 
 use std::str;
-use std::slice;
 
 extern crate time;
 
@@ -83,10 +82,10 @@ fn description(s: &str, pos: &mut usize) -> String {
     if let Some(i) = ls.find(" +").or(ls.find(" @")) {
         let ref xs = s[*pos..*pos+i];
         *pos = *pos + i;
-        String::from(xs)
+        String::from(xs.trim())
     } else {
         *pos = s.len();
-        String::from(ls)
+        String::from(ls.trim())
     }
 }
 fn tag(s: &str, pos: &mut usize) -> Option<Tag> {
@@ -151,13 +150,12 @@ struct Task {
 
 #[cfg(test)]
 mod tests {
-    use Task;
-    use Priority;
-    use task;
+    use {task, completed, priority, date, description, tag};
     use Tag;
-    #[test]
-    fn it_parse_todo_txt_format() {
+    use Priority;
 
+    #[test]
+    fn it_parse_full() {
         let line = "x (A) 2011-03-02 2011-03-01 Review Tim's pull request +TodoTxtTouch @github";
         let t = task(line).unwrap();
         println!("{:?}", t);
@@ -170,5 +168,55 @@ mod tests {
         assert_eq!(t.tags.len(), 2);
         assert_eq!(t.tags[0], Tag::project("TodoTxtTouch"));
         assert_eq!(t.tags[1], Tag::context("github"));
+    }
+
+    #[test]
+    fn it_parse_completed() {
+        assert_eq!(completed("x ", &mut 0), true);
+        assert_eq!(completed("x", &mut 0), true);
+
+        assert_eq!(completed("", &mut 0), false);
+        assert_eq!(completed("a", &mut 0), false);
+        assert_eq!(completed(" x", &mut 0), false);
+    }
+
+    #[test]
+    fn it_parse_priority() {
+        assert_eq!(priority("(A)", &mut 0), Some(Priority::High));
+        assert_eq!(priority("(B)", &mut 0), Some(Priority::Mid));
+        assert_eq!(priority("(C)", &mut 0), Some(Priority::Low));
+        assert_eq!(priority("(D)", &mut 0), None);
+
+        assert_eq!(priority("A", &mut 0), None);
+        assert_eq!(priority("(A ", &mut 0), None);
+        assert_eq!(priority(" A)", &mut 0), None);
+
+        assert_eq!(priority("(a)", &mut 0), None);
+    }
+
+    #[test]
+    fn it_parse_date() {
+        assert_eq!(date("2017-04-16 ", &mut 0), Some(String::from("2017-04-16")));
+        assert_eq!(date("2017-04-16", &mut 0), None);
+
+        assert_eq!(date("2017-4-16", &mut 0), None);
+        assert_eq!(date("2017-04-6", &mut 0), None);
+        assert_eq!(date("17-04-16", &mut 0), None);
+    }
+
+    #[test]
+    fn it_parse_description() {
+        assert_eq!(description("aaaa", &mut 0), "aaaa");
+        assert_eq!(description("aaaa ", &mut 0), "aaaa");
+        assert_eq!(description("aaaa +", &mut 0), "aaaa");
+        assert_eq!(description("aaaa @", &mut 0), "aaaa");
+    }
+
+    #[test]
+    fn it_parse_tag() {
+        assert_eq!(tag(" +abc", &mut 0), Some(Tag::project("abc")));
+        assert_eq!(tag(" @abc", &mut 0), Some(Tag::context("abc")));
+        assert_eq!(tag("+abc", &mut 0), None);
+        assert_eq!(tag("@abc", &mut 0), None);
     }
 }
