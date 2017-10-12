@@ -9,6 +9,8 @@ use std::str;
 
 extern crate time;
 
+use super::{Task, Priority, Tag};
+
 pub fn task(s: &str) -> Option<Task> {
     let mut pos = 0;
     let comp = completed(s, &mut pos);
@@ -36,17 +38,17 @@ pub fn task(s: &str) -> Option<Task> {
 }
 
 fn completed(s: &str, pos: &mut usize) -> bool {
-    match s.get(*pos..*pos+1) {
+    match s.get(*pos..*pos + 1) {
         Some("x") => {
             *pos = *pos + 2;
             true
-        },
-        _ => false
+        }
+        _ => false,
     }
 }
 
 fn priority(s: &str, pos: &mut usize) -> Option<Priority> {
-    let v = s.get(*pos..*pos+3);
+    let v = s.get(*pos..*pos + 3);
     let mut f = |p| {
         *pos += 4;
         Some(p)
@@ -55,7 +57,7 @@ fn priority(s: &str, pos: &mut usize) -> Option<Priority> {
         Some("(A)") => f(Priority::High),
         Some("(B)") => f(Priority::Mid),
         Some("(C)") => f(Priority::Low),
-        _ => None
+        _ => None,
     }
 }
 fn date(s: &str, pos: &mut usize) -> Option<String> {
@@ -64,8 +66,8 @@ fn date(s: &str, pos: &mut usize) -> Option<String> {
             *pos = *pos + 11;
             let datestr = &v[..10];
             Some(String::from(datestr))
-        },
-        _ => None
+        }
+        _ => None,
     }
 }
 
@@ -80,7 +82,7 @@ fn creation_date(s: &str, pos: &mut usize) -> Option<String> {
 fn description(s: &str, pos: &mut usize) -> String {
     let ref ls = s[*pos..];
     if let Some(i) = ls.find(" +").or(ls.find(" @")) {
-        let ref xs = s[*pos..*pos+i];
+        let ref xs = s[*pos..*pos + i];
         *pos = *pos + i;
         String::from(xs.trim())
     } else {
@@ -92,19 +94,19 @@ fn tag(s: &str, pos: &mut usize) -> Option<Tag> {
     let ref ls = s[*pos..];
 
     if let Some(i) = ls.find(" +").or(ls.find(" @")) {
-        let ref ys = ls[i+1..];
+        let ref ys = ls[i + 1..];
         let end = ys.find(" ").unwrap_or(ys.len());
-        let ref tag = s[*pos..*pos+end+1];
+        let ref tag = s[*pos..*pos + end + 1];
 
         match tag.split_at(2) {
             (" +", name) => {
                 *pos = *pos + end + 1;
                 Some(Tag::Project(String::from(name)))
-            },
+            }
             (" @", name) => {
                 *pos = *pos + end + 1;
                 Some(Tag::Context(String::from(name)))
-            },
+            }
             _ => {
                 *pos = s.len();
                 None
@@ -116,81 +118,51 @@ fn tag(s: &str, pos: &mut usize) -> Option<Tag> {
     }
 }
 
-#[derive(Debug,PartialEq)]
-pub enum Priority {
-    High,
-    Mid,
-    Low,
+
+#[test]
+fn it_parse_full() {
+    let line = "x (A) 2011-03-02 2011-03-01 Review Tim's pull request +TodoTxtTouch @github";
+    let t = task(line).unwrap();
+    println!("{:?}", t);
+
+    assert_eq!(t.completed, true);
+    assert_eq!(t.priority.unwrap(), Priority::High);
+    assert_eq!(t.completion_date.unwrap(), "2011-03-02".to_string());
+    assert_eq!(t.creation_date.unwrap(), "2011-03-01".to_string());
+    assert_eq!(t.description, "Review Tim's pull request");
+    assert_eq!(t.tags.len(), 2);
+    assert_eq!(t.tags[0], Tag::project("TodoTxtTouch"));
+    assert_eq!(t.tags[1], Tag::context("github"));
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Tag {
-    Project(String),
-    Context(String),
+#[test]
+fn it_parse_completed() {
+    assert_eq!(completed("x ", &mut 0), true);
+    assert_eq!(completed("x", &mut 0), true);
+
+    assert_eq!(completed("", &mut 0), false);
+    assert_eq!(completed("a", &mut 0), false);
+    assert_eq!(completed(" x", &mut 0), false);
 }
 
-impl Tag {
-    pub fn project(s: &str) -> Tag {
-        Tag::Project(String::from(s))
-    }
-    pub fn context(s: &str) -> Tag {
-        Tag::Context(String::from(s))
-    }
+#[test]
+fn it_parse_priority() {
+    assert_eq!(priority("(A)", &mut 0), Some(Priority::High));
+    assert_eq!(priority("(B)", &mut 0), Some(Priority::Mid));
+    assert_eq!(priority("(C)", &mut 0), Some(Priority::Low));
+    assert_eq!(priority("(D)", &mut 0), None);
+
+    assert_eq!(priority("A", &mut 0), None);
+    assert_eq!(priority("(A ", &mut 0), None);
+    assert_eq!(priority(" A)", &mut 0), None);
+
+    assert_eq!(priority("(a)", &mut 0), None);
 }
-
-#[derive(Debug)]
-pub struct Task {
-    completed: bool,
-    priority: Option<Priority>,
-    completion_date: Option<String>,
-    creation_date: Option<String>,
-    description: String,
-    tags: Vec<Tag>,
-}
-
-    #[test]
-    fn it_parse_full() {
-        let line = "x (A) 2011-03-02 2011-03-01 Review Tim's pull request +TodoTxtTouch @github";
-        let t = task(line).unwrap();
-        println!("{:?}", t);
-
-        assert_eq!(t.completed, true);
-        assert_eq!(t.priority.unwrap(), Priority::High);
-        assert_eq!(t.completion_date.unwrap(), "2011-03-02".to_string());
-        assert_eq!(t.creation_date.unwrap(), "2011-03-01".to_string());
-        assert_eq!(t.description, "Review Tim's pull request");
-        assert_eq!(t.tags.len(), 2);
-        assert_eq!(t.tags[0], Tag::project("TodoTxtTouch"));
-        assert_eq!(t.tags[1], Tag::context("github"));
-    }
-
-    #[test]
-    fn it_parse_completed() {
-        assert_eq!(completed("x ", &mut 0), true);
-        assert_eq!(completed("x", &mut 0), true);
-
-        assert_eq!(completed("", &mut 0), false);
-        assert_eq!(completed("a", &mut 0), false);
-        assert_eq!(completed(" x", &mut 0), false);
-    }
-
-    #[test]
-    fn it_parse_priority() {
-        assert_eq!(priority("(A)", &mut 0), Some(Priority::High));
-        assert_eq!(priority("(B)", &mut 0), Some(Priority::Mid));
-        assert_eq!(priority("(C)", &mut 0), Some(Priority::Low));
-        assert_eq!(priority("(D)", &mut 0), None);
-
-        assert_eq!(priority("A", &mut 0), None);
-        assert_eq!(priority("(A ", &mut 0), None);
-        assert_eq!(priority(" A)", &mut 0), None);
-
-        assert_eq!(priority("(a)", &mut 0), None);
-    }
 
 #[test]
 fn it_parse_date() {
-    assert_eq!(date("2017-04-16 ", &mut 0), Some(String::from("2017-04-16")));
+    assert_eq!(date("2017-04-16 ", &mut 0),
+               Some(String::from("2017-04-16")));
     assert_eq!(date("2017-04-16", &mut 0), None);
 
     assert_eq!(date("2017-4-16", &mut 0), None);

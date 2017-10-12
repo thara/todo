@@ -1,7 +1,7 @@
 use std::env;
 
 extern crate todo;
-use todo::parser::{Task, task};
+use todo::parser::task;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
