@@ -7,7 +7,7 @@ pub enum Priority {
     Low,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug,PartialEq)]
 pub enum Tag {
     Project(String),
     Context(String),

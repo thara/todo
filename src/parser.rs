@@ -60,6 +60,7 @@ fn priority(s: &str, pos: &mut usize) -> Option<Priority> {
         _ => None,
     }
 }
+
 fn date(s: &str, pos: &mut usize) -> Option<String> {
     match s.get(*pos..*pos + 11) {
         Some(v) if time::strptime(v, "%Y-%m-%d ").is_ok() => {
@@ -90,6 +91,7 @@ fn description(s: &str, pos: &mut usize) -> String {
         String::from(ls.trim())
     }
 }
+
 fn tag(s: &str, pos: &mut usize) -> Option<Tag> {
     let ref ls = s[*pos..];
 
@@ -117,7 +119,6 @@ fn tag(s: &str, pos: &mut usize) -> Option<Tag> {
         None
     }
 }
-
 
 #[test]
 fn it_parse_full() {
