@@ -149,33 +149,14 @@ struct Task {
     tags: Vec<Tag>,
 }
 
-impl Task {
-    fn parse_line(line: &str) {
-        let mut chars = line.chars();
-
-        for ch in chars {
-            println!("XXXXX {}", ch);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use Task;
-    use Parser;
     use Priority;
     use task;
     use Tag;
     #[test]
     fn it_parse_todo_txt_format() {
-
-        let item = Parser::<String>(|cs| match cs.as_ref() {
-            "" => Vec::new(),
-            _ => {
-                let (head, tail) = cs.split_at(1);
-                vec![(String::from(head), String::from(tail))]
-            }
-        });
 
         let line = "x (A) 2011-03-02 2011-03-01 Review Tim's pull request +TodoTxtTouch @github";
         let t = task(line).unwrap();
