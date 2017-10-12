@@ -5,63 +5,66 @@
 // <creation_date> ::= <date> " "
 // <tag> ::= " +" <project_name> | " @" <context_name>
 
-use std::slice;
 use std::str;
+use std::slice;
 
 extern crate time;
 
 fn task(s: &str) -> Option<Task> {
-    let mut pos = 0;
+    let pos = 0;
     let (comp, pos) = completed(s, pos);
     let (pri, pos) = priority(s, pos);
     let (d1, pos) = completion_date(s, pos);
     let (d2, pos) = creation_date(s, pos);
+    let (desc, pos) = description(s, pos);
 
-    let desc = &s[pos..];
+    let mut tags = Vec::new();
+    let mut pos = pos;
+    while pos < s.len() {
+        let t = tag(s, pos);
+        pos = t.1;
+        if let Some(t) = t.0 {
+            tags.push(t);
+        }
+    }
+
     let t = Task {
         completed: comp,
         priority: pri,
         completion_date: d1,
         creation_date: d2,
-        description: String::from(desc),
+        description: desc,
+        tags: tags,
     };
     Some(t)
-
-    // while s[pos] == " " {
-    //     let t, pos = tag(s, pos);
-    // }
 }
 fn completed(s: &str, pos: usize) -> (bool, usize) {
-    if s.chars().nth(pos) == Some('x') {
-        (true, pos + 1)
+    if s.get(pos..pos+1) == Some("x") {
+        (true, pos + 2)
     } else {
         (false, pos)
     }
 }
 fn priority(s: &str, pos: usize) -> (Option<Priority>, usize) {
-    let mut chars = s.chars();
-    if chars.nth(pos) == Some('(') && chars.nth(pos + 2) == Some(')') {
-        let ch = chars.nth(pos + 1).unwrap();
-        let p = match ch {
-            'A' => Priority::High,
-            'B' => Priority::Mid,
+    if s.get(pos..pos+1) == Some(&"(") && s.get(pos+2..pos+3) == Some(&")") {
+        let p = match s.get(pos+1..pos+2).unwrap() {
+            "A" => Priority::High,
+            "B" => Priority::Mid,
             _ => Priority::Low,
         };
-        (Some(p), pos + 3)
+        (Some(p), pos + 4)
     } else {
         (None, pos)
     }
 }
 fn date(s: &str, pos: usize) -> (Option<String>, usize) {
-    let mut chars = s.chars();
-    if chars.nth(pos + 11) == Some(' ') {
-        if let Some(datestr) = s.get(pos..pos + 11) {
+    if s.get(pos+10..pos+11) == Some(" ") {
+        if let Some(datestr) = s.get(pos..pos + 10) {
             match time::strptime(datestr, "%Y-%m-%d") {
                 Ok(_) => (Some(String::from(datestr)), pos + 11),
                 _ => (None, pos),
             }
         } else {
-
             (None, pos)
         }
     } else {
@@ -76,8 +79,32 @@ fn completion_date(s: &str, pos: usize) -> (Option<String>, usize) {
 fn creation_date(s: &str, pos: usize) -> (Option<String>, usize) {
     date(s, pos)
 }
-// fn tag(s: &str, pos: usize) -> (String, usize) {
-// }
+
+fn description(s: &str, pos: usize) -> (String, usize) {
+    let ref ls = s[pos..];
+    if let Some(i) = ls.find(" +").or(ls.find(" @")) {
+        let ref xs = s[pos..pos+i];
+        (String::from(xs), pos+i)
+    } else {
+        (String::from(ls), s.len())
+    }
+}
+fn tag(s: &str, pos: usize) -> (Option<Tag>, usize) {
+    let ref ls = s[pos..];
+    if let Some(i) = ls.find(" +").or(ls.find(" @")) {
+        let ref ys = ls[i+1..];
+        let end = ys.find(" ").unwrap_or(ys.len());
+        let ref name = s[pos+2..pos+end+1];
+        let tag = match &s[pos..pos+2] {
+            " +" => Tag::Project(String::from(name)),
+            " @" => Tag::Context(String::from(name)),
+            _ => Tag::Project(String::from(name)),
+        };
+        (Some(tag), pos+end+1)
+    } else {
+        (None, s.len())
+    }
+}
 
 struct Parser<T>(pub fn(String) -> Vec<(T, String)>);
 
@@ -95,6 +122,21 @@ enum Priority {
     Low,
 }
 
+#[derive(Debug, PartialEq)]
+enum Tag {
+    Project(String),
+    Context(String),
+}
+
+impl Tag {
+    fn project(s: &str) -> Tag {
+        Tag::Project(String::from(s))
+    }
+    fn context(s: &str) -> Tag {
+        Tag::Context(String::from(s))
+    }
+}
+
 #[derive(Debug)]
 struct Task {
     completed: bool,
@@ -102,6 +144,7 @@ struct Task {
     completion_date: Option<String>,
     creation_date: Option<String>,
     description: String,
+    tags: Vec<Tag>,
 }
 
 impl Task {
@@ -120,6 +163,7 @@ mod tests {
     use Parser;
     use Priority;
     use task;
+    use Tag;
     #[test]
     fn it_parse_todo_txt_format() {
 
@@ -131,8 +175,6 @@ mod tests {
             }
         });
 
-
-
         let line = "x (A) 2011-03-02 2011-03-01 Review Tim's pull request +TodoTxtTouch @github";
         let t = task(line).unwrap();
         println!("{:?}", t);
@@ -141,10 +183,11 @@ mod tests {
         assert_eq!(t.priority.unwrap(), Priority::High);
         assert_eq!(t.completion_date.unwrap(), "2011-03-02".to_string());
         assert_eq!(t.creation_date.unwrap(), "2011-03-01".to_string());
-        assert_eq!(t.description,
-                   "Review Tim's pull request +TodoTxtTouch @github");
+        assert_eq!(t.description, "Review Tim's pull request");
         // assert_eq!(task.description.txt, "Review Tim's pull request ");
-        // assert_eq!(task.description.contexts.length, 1);
+        assert_eq!(t.tags.len(), 2);
+        assert_eq!(t.tags[0], Tag::project("TodoTxtTouch"));
+        assert_eq!(t.tags[1], Tag::context("github"));
         // assert_eq!(task.description.contexts[0], "TodoTxtTouch");
         // assert_eq!(task.description.projects.length, 1);
         // assert_eq!(task.description.projects[0], "github");
