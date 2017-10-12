@@ -11,19 +11,16 @@ use std::slice;
 extern crate time;
 
 fn task(s: &str) -> Option<Task> {
-    let pos = 0;
-    let (comp, pos) = completed(s, pos);
-    let (pri, pos) = priority(s, pos);
-    let (d1, pos) = completion_date(s, pos);
-    let (d2, pos) = creation_date(s, pos);
-    let (desc, pos) = description(s, pos);
+    let mut pos = 0;
+    let comp = completed(s, &mut pos);
+    let pri = priority(s, &mut pos);
+    let d1 = completion_date(s, &mut pos);
+    let d2 = creation_date(s, &mut pos);
+    let desc = description(s, &mut pos);
 
     let mut tags = Vec::new();
-    let mut pos = pos;
     while pos < s.len() {
-        let t = tag(s, pos);
-        pos = t.1;
-        if let Some(t) = t.0 {
+        if let Some(t) = tag(s, &mut pos) {
             tags.push(t);
         }
     }
@@ -38,82 +35,87 @@ fn task(s: &str) -> Option<Task> {
     };
     Some(t)
 }
-fn completed(s: &str, pos: usize) -> (bool, usize) {
-    if s.get(pos..pos+1) == Some("x") {
-        (true, pos + 2)
-    } else {
-        (false, pos)
-    }
-}
-fn priority(s: &str, pos: usize) -> (Option<Priority>, usize) {
-    if s.get(pos..pos+1) == Some(&"(") && s.get(pos+2..pos+3) == Some(&")") {
-        let p = match s.get(pos+1..pos+2).unwrap() {
-            "A" => Priority::High,
-            "B" => Priority::Mid,
-            _ => Priority::Low,
-        };
-        (Some(p), pos + 4)
-    } else {
-        (None, pos)
-    }
-}
-fn date(s: &str, pos: usize) -> (Option<String>, usize) {
-    if s.get(pos+10..pos+11) == Some(" ") {
-        if let Some(datestr) = s.get(pos..pos + 10) {
-            match time::strptime(datestr, "%Y-%m-%d") {
-                Ok(_) => (Some(String::from(datestr)), pos + 11),
-                _ => (None, pos),
-            }
-        } else {
-            (None, pos)
-        }
-    } else {
-        (None, pos)
+
+fn completed(s: &str, pos: &mut usize) -> bool {
+    match s.get(*pos..*pos+1) {
+        Some("x") => {
+            *pos = *pos + 2;
+            true
+        },
+        _ => false
     }
 }
 
-fn completion_date(s: &str, pos: usize) -> (Option<String>, usize) {
+fn priority(s: &str, pos: &mut usize) -> Option<Priority> {
+    let v = s.get(*pos..*pos+3);
+    let mut f = |p| {
+        *pos += 4;
+        Some(p)
+    };
+    match v {
+        Some("(A)") => f(Priority::High),
+        Some("(B)") => f(Priority::Mid),
+        Some("(C)") => f(Priority::Low),
+        _ => None
+    }
+}
+fn date(s: &str, pos: &mut usize) -> Option<String> {
+    match s.get(*pos..*pos + 11) {
+        Some(v) if time::strptime(v, "%Y-%m-%d ").is_ok() => {
+            *pos = *pos + 11;
+            let datestr = &v[..10];
+            Some(String::from(datestr))
+        },
+        _ => None
+    }
+}
+
+fn completion_date(s: &str, pos: &mut usize) -> Option<String> {
     date(s, pos)
 }
 
-fn creation_date(s: &str, pos: usize) -> (Option<String>, usize) {
+fn creation_date(s: &str, pos: &mut usize) -> Option<String> {
     date(s, pos)
 }
 
-fn description(s: &str, pos: usize) -> (String, usize) {
-    let ref ls = s[pos..];
+fn description(s: &str, pos: &mut usize) -> String {
+    let ref ls = s[*pos..];
     if let Some(i) = ls.find(" +").or(ls.find(" @")) {
-        let ref xs = s[pos..pos+i];
-        (String::from(xs), pos+i)
+        let ref xs = s[*pos..*pos+i];
+        *pos = *pos + i;
+        String::from(xs)
     } else {
-        (String::from(ls), s.len())
+        *pos = s.len();
+        String::from(ls)
     }
 }
-fn tag(s: &str, pos: usize) -> (Option<Tag>, usize) {
-    let ref ls = s[pos..];
+fn tag(s: &str, pos: &mut usize) -> Option<Tag> {
+    let ref ls = s[*pos..];
+
     if let Some(i) = ls.find(" +").or(ls.find(" @")) {
         let ref ys = ls[i+1..];
         let end = ys.find(" ").unwrap_or(ys.len());
-        let ref name = s[pos+2..pos+end+1];
-        let tag = match &s[pos..pos+2] {
-            " +" => Tag::Project(String::from(name)),
-            " @" => Tag::Context(String::from(name)),
-            _ => Tag::Project(String::from(name)),
-        };
-        (Some(tag), pos+end+1)
+        let ref tag = s[*pos..*pos+end+1];
+
+        match tag.split_at(2) {
+            (" +", name) => {
+                *pos = *pos + end + 1;
+                Some(Tag::Project(String::from(name)))
+            },
+            (" @", name) => {
+                *pos = *pos + end + 1;
+                Some(Tag::Context(String::from(name)))
+            },
+            _ => {
+                *pos = s.len();
+                None
+            }
+        }
     } else {
-        (None, s.len())
+        *pos = s.len();
+        None
     }
 }
-
-struct Parser<T>(pub fn(String) -> Vec<(T, String)>);
-
-// impl Parser<T> {
-//     fn parse(&self, s: String) -> Option<T> {
-//         let Parser(f) = self;
-//         f(s);
-//     }
-// }
 
 #[derive(Debug,PartialEq)]
 enum Priority {
@@ -184,12 +186,8 @@ mod tests {
         assert_eq!(t.completion_date.unwrap(), "2011-03-02".to_string());
         assert_eq!(t.creation_date.unwrap(), "2011-03-01".to_string());
         assert_eq!(t.description, "Review Tim's pull request");
-        // assert_eq!(task.description.txt, "Review Tim's pull request ");
         assert_eq!(t.tags.len(), 2);
         assert_eq!(t.tags[0], Tag::project("TodoTxtTouch"));
         assert_eq!(t.tags[1], Tag::context("github"));
-        // assert_eq!(task.description.contexts[0], "TodoTxtTouch");
-        // assert_eq!(task.description.projects.length, 1);
-        // assert_eq!(task.description.projects[0], "github");
     }
 }
