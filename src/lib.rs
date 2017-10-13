@@ -1,5 +1,8 @@
 pub mod parser;
 
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
+
 #[derive(Debug,PartialEq)]
 pub enum Priority {
     High,

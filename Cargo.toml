@@ -1,7 +1,10 @@
 [package]
 name = "todo"
 version = "0.1.0"
-authors = ["Tomochika Hara <hara@wonderpla.net>"]
+authors = ["Tomochika Hara <rust@thara.jp>"]
 
 [dependencies]
 time = "0.1.38"
+clap = "2.26.2"
+log = "0.3"
+env_logger = "0.3"
