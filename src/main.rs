@@ -3,10 +3,12 @@ use std::io;
 use std::io::prelude::*;
 use std::io::{BufReader, LineWriter};
 use std::path::PathBuf;
+use std::ffi::OsStr;
 use std::os::unix::fs::PermissionsExt;
 use std::fs;
 use std::fs::OpenOptions;
 use std::process;
+use std::os::unix::process::CommandExt;
 
 #[macro_use]
 extern crate log;
@@ -61,6 +63,10 @@ fn main() {
             let bytes = task.as_bytes();
             w.write(bytes).expect("Writing bytes is failed");
             w.write(b"\n").expect("Writing bytes is failed");
+        }
+        ("edit", Some(_)) => {
+            let path: &OsStr = txt_path.as_ref();
+            process::Command::new("vi").arg(path).exec();
         }
         _ => {
             if metadata.len() == 0 {
