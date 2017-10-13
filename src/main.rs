@@ -12,7 +12,7 @@ use std::process;
 extern crate log;
 extern crate clap;
 extern crate ansi_term;
-use ansi_term::{ANSIString, ANSIStrings};
+use ansi_term::ANSIString;
 use ansi_term::Colour::{Red, Yellow, Blue};
 
 extern crate todo;
@@ -21,20 +21,17 @@ mod cli;
 fn main() {
     let matches = cli::build_app().get_matches();
 
-    let bf: PathBuf = matches.value_of("target").map_or_else(
-        || {
-            let home_dir = env::home_dir().expect("Impossible to get your home dir.");
-            home_dir.join("todo.txt")
-        },
-        PathBuf::from,
-    );
+    let bf: PathBuf = matches.value_of("target")
+        .map_or_else(|| {
+                         let home_dir = env::home_dir().expect("Impossible to get your home dir.");
+                         home_dir.join("todo.txt")
+                     },
+                     PathBuf::from);
     let txt_path = bf.as_path();
 
     if !txt_path.exists() {
-        println!(
-            "Todo.txt does not found at {}. Create new todo.txt.",
-            txt_path.to_string_lossy()
-        );
+        println!("Todo.txt does not found at {}. Create new todo.txt.",
+                 txt_path.to_string_lossy());
         let f = fs::File::create(txt_path).expect("todo.txt creation failed");
         let m = f.metadata().expect("Can not access todo.txt metadata");
         let mut perm = m.permissions();
@@ -45,11 +42,10 @@ fn main() {
 
     let metadata = fs::metadata(txt_path).expect("Can not access todo.txt metadata");
     if metadata.is_dir() {
-        writeln!(
-            io::stderr(),
-            "todo.txt({}) must not a directory but a file.",
-            txt_path.to_string_lossy()
-        ).unwrap();
+        writeln!(io::stderr(),
+                 "todo.txt({}) must not a directory but a file.",
+                 txt_path.to_string_lossy())
+            .unwrap();
         process::exit(1);
     }
 
@@ -70,9 +66,7 @@ fn main() {
             if metadata.len() == 0 {
                 println!("todo.txt is empty.");
             } else {
-                let f = OpenOptions::new().read(true).open(txt_path).expect(
-                    "todo.txt open failed",
-                );
+                let f = OpenOptions::new().read(true).open(txt_path).expect("todo.txt open failed");
                 let reader = BufReader::new(f);
                 for (i, line) in reader.lines().enumerate() {
                     match line {

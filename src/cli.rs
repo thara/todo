@@ -8,9 +8,7 @@ pub fn build_app() -> App<'static, 'static> {
     let program = std::env::args()
         .nth(0)
         .and_then(|s| {
-            std::path::PathBuf::from(s).file_stem().map(|s| {
-                s.to_string_lossy().into_owned()
-            })
+            std::path::PathBuf::from(s).file_stem().map(|s| s.to_string_lossy().into_owned())
         })
         .unwrap();
 
