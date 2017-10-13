@@ -11,6 +11,9 @@ use std::process;
 #[macro_use]
 extern crate log;
 extern crate clap;
+extern crate ansi_term;
+use ansi_term::{ANSIString, ANSIStrings};
+use ansi_term::Colour::{Red, Yellow, Blue};
 
 extern crate todo;
 mod cli;
@@ -71,10 +74,20 @@ fn main() {
                     "todo.txt open failed",
                 );
                 let reader = BufReader::new(f);
-                for line in reader.lines() {
+                for (i, line) in reader.lines().enumerate() {
                     match line {
                         Ok(s) => {
-                            println!("{}", s);
+                            if let Some(task) = todo::parser::task(&s) {
+                                let t = format!("#{} {}", i, task);
+
+                                match task.priority {
+                                    Some(todo::Priority::High) => println!("{}", Red.paint(t)),
+                                    Some(todo::Priority::Mid) => println!("{}", Yellow.paint(t)),
+                                    Some(todo::Priority::Low) => println!("{}", Blue.paint(t)),
+                                    _ => println!("{}", ANSIString::from(t)),
+                                }
+
+                            }
                         }
                         _ => {}
                     }

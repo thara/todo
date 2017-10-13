@@ -162,8 +162,10 @@ fn it_parse_priority() {
 
 #[test]
 fn it_parse_date() {
-    assert_eq!(date("2017-04-16 ", &mut 0),
-               Some(String::from("2017-04-16")));
+    assert_eq!(
+        date("2017-04-16 ", &mut 0),
+        Some(String::from("2017-04-16"))
+    );
     assert_eq!(date("2017-04-16", &mut 0), None);
 
     assert_eq!(date("2017-4-16", &mut 0), None);

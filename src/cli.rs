@@ -34,7 +34,14 @@ pub fn build_app() -> App<'static, 'static> {
                         .help("Task content")
                         .required(true)
                         .index(1),
-                ),
+                )
+                .arg(Arg::with_name("priority")
+                    .short("p")
+                    .long("pri")
+                    .value_name("PRIORITY")
+                    .help("Set a priority of task")
+                    .takes_value(true))
+                ,
         )
         // .subcommand(SubCommand::with_name("archive").about(
         //     "Moves all done tasks from todo.txt to done.txt and removes blank lines",
