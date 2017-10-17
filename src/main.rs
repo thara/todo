@@ -58,9 +58,14 @@ fn main() {
                 .append(true)
                 .open(txt_path)
                 .expect("todo.txt open failed");
+            let description = sub_m.value_of("TASK").unwrap();
+
+            let p = sub_m.value_of("priority");
+            let task = todo::TaskBuilder::new(description).priority(p).build();
+
+            let s = format!("{}", task);
+            let bytes = s.as_bytes();
             let mut w = LineWriter::new(f);
-            let task = sub_m.value_of("TASK").unwrap();
-            let bytes = task.as_bytes();
             w.write(bytes).expect("Writing bytes is failed");
             w.write(b"\n").expect("Writing bytes is failed");
         }
